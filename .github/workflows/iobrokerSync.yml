@@ -1,0 +1,46 @@
+name: ioBroker Sync
+
+on:
+  workflow_dispatch:
+
+#  schedule:
+#    # * is a special character in YAML, so you have to quote this string
+#    # every day
+#    - cron:  '0 1 * * *'
+
+# avoid concurrengt runs
+concurrency:
+  group: iobroker-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sync
+
+      - name: Rebase upstream
+        run: |
+          git remote add upstream "https://github.com/ioBroker/ioBroker.repositories.git"
+          git fetch upstream --no-tags
+          git rebase upstream/master
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm i
+
+      - name: Check for new version
+        id: check-release
+        run: |
+          version=$(curl -s "https://api.github.com/repos/holomekc/ioBroker.bshb/releases/latest" | jq -r '.name')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Replace version
+        if: steps.check-release.outputs.version != ''
+        run: |
+          jq '.bshb.version = "${{ steps.check-release.outputs.version }}"' sources-dist-stable.json > tmp.json && mv tmp.json sources-dist-stable.json
