@@ -2,11 +2,10 @@ name: ioBroker Sync
 
 on:
   workflow_dispatch:
-
-#  schedule:
-#    # * is a special character in YAML, so you have to quote this string
-#    # every day
-#    - cron:  '0 1 * * *'
+  schedule:
+    # * is a special character in YAML, so you have to quote this string
+    # every day
+    - cron:  '0 1 * * *'
 
 # avoid concurrengt runs
 concurrency:
@@ -24,6 +23,7 @@ jobs:
 
       - name: Rebase upstream
         run: |
+          #!/bin/bash
           git remote add upstream "https://github.com/ioBroker/ioBroker.repositories.git"
           git fetch upstream --no-tags
           git rebase upstream/master
@@ -37,10 +37,43 @@ jobs:
       - name: Check for new version
         id: check-release
         run: |
-          version=$(curl -s "https://api.github.com/repos/holomekc/ioBroker.bshb/releases/latest" | jq -r '.name')
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          #!/bin/bash
+          response=$(curl -s https://api.github.com/repos/holomekc/ioBroker.bshb/releases/latest)
 
-      - name: Replace version
+          published_date=$(echo "$response" | jq -r '.published_at')
+          version=$(echo "$response" | jq -r '.name')
+          
+          current_date=$(date +%s)
+          published_date_epoch=$(date -d "$published_date" +%s)
+          days_diff=$(( (current_date - published_date_epoch) / 86400 ))
+          
+          if [ "$days_diff" -ge 14 ]; then
+            echo "The $version was released 14 days ago or older. We can release to stable."          
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          else
+            echo "The $version release is less than 14 days old. No release."
+          fi
+
+
+      - name: Push to stable
         if: steps.check-release.outputs.version != ''
         run: |
-          jq '.bshb.version = "${{ steps.check-release.outputs.version }}"' sources-dist-stable.json > tmp.json && mv tmp.json sources-dist-stable.json
+          #!/bin/bash
+          FILE="sources-dist-stable.json"
+          
+          jq '.bshb.version = "${{ steps.check-release.outputs.version }}"' "$FILE" > tmp.json && mv tmp.json "$FILE"
+          
+          git add "$FILE"
+          
+          if git diff --cached --quiet "$FILE"; then
+            echo "No changes to commit in $FILE."
+            exit 0
+          fi
+          
+          commit_message="Update bshb to ${{ steps.check-release.outputs.version }}"
+          git commit -m "$commit_message"
+          git push origin
+          
+          pr_title="Update bshb to ${{ steps.check-release.outputs.version }}"
+          pr_body="Please update my adapter ioBroker.bshb to version ${{ steps.check-release.outputs.version }}"
+          gh pr create --title "$pr_title" --body "$pr_body" --base upstream/master --head sync
