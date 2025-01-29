@@ -57,6 +57,8 @@ jobs:
 
       - name: Push to stable
         if: steps.check-release.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           #!/bin/bash
           FILE="sources-dist-stable.json"
@@ -70,10 +72,13 @@ jobs:
             exit 0
           fi
           
+          git config user.name "holomekc"
+          git config user.email "30546982+holomekc@users.noreply.github.com"
+          
           commit_message="Update bshb to ${{ steps.check-release.outputs.version }}"
           git commit -m "$commit_message"
           git push origin
           
           pr_title="Update bshb to ${{ steps.check-release.outputs.version }}"
           pr_body="Please update my adapter ioBroker.bshb to version ${{ steps.check-release.outputs.version }}"
-          gh pr create --title "$pr_title" --body "$pr_body" --base upstream/master --head sync
+          gh pr create --title "$pr_title" --body "$pr_body" --base "master" --head "holomekc:$(git branch --show-current)"
