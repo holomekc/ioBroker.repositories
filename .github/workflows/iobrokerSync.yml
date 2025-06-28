@@ -2,10 +2,10 @@ name: ioBroker Sync
 
 on:
   workflow_dispatch:
-#  schedule:
-#    # * is a special character in YAML, so you have to quote this string
-#    # every day
-#    - cron:  '0 1 * * *'
+  schedule:
+    # * is a special character in YAML, so you have to quote this string
+    # every day
+    - cron:  '0 1 * * *'
 
 # avoid concurrengt runs
 concurrency:
