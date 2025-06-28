@@ -27,6 +27,8 @@ jobs:
           git remote add upstream "https://github.com/ioBroker/ioBroker.repositories.git"
           git fetch upstream --no-tags
           git rebase upstream/master
+          git push origin upstream --force
+          
           git branch sync
           git switch sync
           git push origin sync --force
