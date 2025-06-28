@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: sync
+          ref: upstream
 
       - name: Rebase upstream
         run: |
@@ -27,6 +27,9 @@ jobs:
           git remote add upstream "https://github.com/ioBroker/ioBroker.repositories.git"
           git fetch upstream --no-tags
           git rebase upstream/master
+          git branch sync
+          git switch sync
+          git push origin sync --force
 
       - uses: actions/setup-node@v4
         with:
